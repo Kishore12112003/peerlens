@@ -95,6 +95,12 @@ def money(v: float, cur: str) -> str:
     return f"{sym}{v:,.0f}" if sym else f"{v:,.0f} {cur}"
 
 
+def safe_url(u) -> str:
+    """Only allow normal web links (blocks javascript: and other unsafe schemes)."""
+    u = str(u or "")
+    return u if u.startswith(("https://", "http://")) else "#"
+
+
 def esc(s) -> str:
     return html.escape(str(s or ""))
 
@@ -273,8 +279,9 @@ st.markdown(
 # ---------- 5. AI insights ----------
 st.markdown('<div class="step">What the news and numbers say</div>', unsafe_allow_html=True)
 if not summary.used_ai:
-    st.info("AI summary is off" + (f" ({summary.error})" if summary.error else
-            " because no Gemini API key is set") + ". Showing an automatic summary from the numbers instead.")
+    st.info(("The AI summary is temporarily unavailable" if summary.error else
+             "The AI summary is off because no Gemini API key is set")
+            + ". Showing an automatic summary from the numbers instead.")
 i1, i2, i3 = st.columns(3, gap="medium")
 for col, icon, title, text, tint in (
     (i1, "✅", "Good news", summary.positive, "#F0FDF4"),
@@ -297,7 +304,7 @@ for col, co, key, color in ((n1, a, "A", COLOR_A), (n2, b, "B", COLOR_B)):
             bg, fg = TONE[tone]
             pill = f'<span class="pill" style="background:{bg};color:{fg}">News mood: {tone}</span>'
         items = "".join(
-            f'<div><a href="{esc(n["url"])}" target="_blank" rel="noopener">{esc(n["title"])}</a>'
+            f'<div><a href="{esc(safe_url(n["url"]))}" target="_blank" rel="noopener noreferrer">{esc(n["title"])}</a>'
             f'<div class="meta">{esc(n["source"])}{" · " + n["date"].strftime("%d %b %Y") if n["date"] else ""}'
             f'</div></div>'
             for n in co.news

@@ -163,7 +163,7 @@ def build_memo(a: Company, b: Company, ma: Metrics, mb: Metrics, prices: pd.Data
             wsn.cell(row=i, column=2, value=item["date"].strftime("%Y-%m-%d") if item["date"] else "")
             wsn.cell(row=i, column=3, value=item["title"])
             wsn.cell(row=i, column=4, value=item["source"])
-            if item["url"]:
+            if str(item["url"] or "").startswith(("https://", "http://")):
                 link = wsn.cell(row=i, column=5, value="Open article")
                 link.hyperlink = item["url"]
                 link.font = Font(color=BLUE, underline="single")

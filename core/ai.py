@@ -133,4 +133,6 @@ def summarise(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str) -> 
             prompt=prompt, model=model, used_ai=True,
         )
     except Exception as e:  # never break the app because the AI is unavailable
-        return _fallback(a, b, ma, mb, prompt, error=f"{type(e).__name__}: {e}")
+        # Log only the error type (server-side); never show raw errors, which could leak request details.
+        print(f"[ai] Gemini call failed: {type(e).__name__}")
+        return _fallback(a, b, ma, mb, prompt, error=type(e).__name__)
