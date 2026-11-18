@@ -153,9 +153,10 @@ def _google_reason(e: Exception) -> str:
 
 
 def _key_shape(key: str) -> str:
-    ok = key.startswith("AIza") and len(key) == 39
-    return (f"key starts with 'AIza': {'yes' if key.startswith('AIza') else 'NO'}, "
-            f"length {len(key)} characters (a normal key has 39)" + ("" if ok else " ⚠️"))
+    """Safe hints about the saved key (never the key itself)."""
+    looks_short = len(key) < 30
+    hint = " ⚠️ looks cut off: use the copy button, not the text shown on screen" if looks_short else ""
+    return f"saved key is {len(key)} characters long (real keys are usually 39+){hint}"
 
 
 def _parse(text: str) -> dict:
