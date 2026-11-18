@@ -41,3 +41,8 @@ and shows an automatic summary built from the numbers.
 | `core/analysis.py` | All the maths + the head-to-head scorecard |
 | `core/ai.py` | Builds the audit prompt and calls Gemini (text only) |
 | `core/excel.py` | Builds the downloadable Excel memo |
+
+## Sharing tip
+
+Share **https://peerlens.streamlit.app/?embed=true** for a clean view without the Streamlit
+toolbar, creator badge and GitHub links.

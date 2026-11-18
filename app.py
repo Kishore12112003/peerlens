@@ -141,7 +141,7 @@ with st.expander("➕ Add your own news headlines (optional)"):
     extra = st.text_area("One headline per line. We already fetch the latest news automatically.",
                          placeholder="e.g. BNP Paribas announces €1bn share buyback", height=90)
 
-go_btn = st.button("Compare now  →", type="primary", use_container_width=True,
+go_btn = st.button("Compare now  →", type="primary", width="stretch",
                    disabled=not (ticker_a and ticker_b))
 if ticker_a and ticker_b and ticker_a == ticker_b:
     st.warning("You picked the same company twice. Choose two different ones.")
@@ -216,7 +216,7 @@ with right:
     )
     st.download_button("⬇  Download Excel memo", data=res["xlsx"], file_name=memo_filename(a, b),
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                       type="primary", use_container_width=True, on_click="ignore")
+                       type="primary", width="stretch", on_click="ignore")
 st.caption("⚠️ This is an educational comparison of past data, not financial advice. Past performance does not "
            "guarantee future results. Do your own research or talk to a licensed advisor before investing.")
 
@@ -259,7 +259,7 @@ fig.update_layout(height=450, margin=dict(l=10, r=10, t=40, b=10), hovermode="x 
                       dict(count=3, label="3Y", step="year", stepmode="backward"),
                       dict(count=5, label="5Y", step="year", stepmode="backward"),
                       dict(step="all", label="All")]), type="date"))
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 st.caption("“Growth of 100” shows what 100 invested at the start would be worth on each day "
            "(dividends reinvested, splits adjusted). It makes two very different share prices easy to compare.")
 
@@ -349,7 +349,7 @@ with st.expander("🔬 For analysts: all figures"):
                    f(mb.one_year_return, "pct"), f(mb.volatility, "pct"), f(mb.max_drawdown, "pct"),
                    f(mb.return_per_risk, "x")],
     })
-    st.dataframe(table, hide_index=True, use_container_width=True)
+    st.dataframe(table, hide_index=True, width="stretch")
     st.caption(f"Correlation of daily returns: {res['corr']:.2f} · {len(prices):,} common trading days · "
                f"{start:%d %b %Y} to {end:%d %b %Y}")
 with st.expander("🧾 Audit: exact text sent to the AI"):
