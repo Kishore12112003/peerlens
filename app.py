@@ -176,7 +176,10 @@ if go_btn:
 
 res = st.session_state.get("result")
 if not res:
-    st.markdown('<p class="small" style="margin-top:1rem">Tip: you can type a company name in any language '
+    st.markdown('<div class="card" style="margin-top:1rem;text-align:center">'
+                '👆 Click <b>Compare now</b>. Your results and the <b>📥 Download Excel memo</b> button '
+                'will appear here in about 10 seconds.</div>'
+                '<p class="small" style="margin-top:1rem">Tip: you can type a company name in any language '
                 'Yahoo Finance knows, or a ticker like <b>AAPL</b>, <b>MC.PA</b> or <b>7203.T</b>.</p>',
                 unsafe_allow_html=True)
     st.stop()
