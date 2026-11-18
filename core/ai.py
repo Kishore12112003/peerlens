@@ -83,7 +83,8 @@ def _fallback(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str, err
                        f"{mg.total_return:+.1%} for {lag.short}). {calmer.short} had the calmer share price."),
         positive=f"{lead.short} delivered the higher total return ({ml.total_return:+.1%}).",
         negative=f"{lag.short} lagged, with a worst drop of {mg.max_drawdown:.1%} from its peak.",
-        risks="AI news reading is switched off (no Gemini key), so check the latest headlines below yourself.",
+        risks=("AI news reading is temporarily unavailable" if error else
+               "AI news reading is switched off (no Gemini key)") + ", so check the latest headlines below yourself.",
         prompt=prompt, used_ai=False, error=error,
     )
 
