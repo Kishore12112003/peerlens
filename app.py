@@ -114,10 +114,10 @@ st.markdown(
 TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-^=]{0,14}$")
 
 
-def ticker_box(col, label: str, default: str, key: str):
+def ticker_box(col, label: str, example: str, key: str):
     with col:
-        t = st.text_input(label, value=default, key=f"{key}_ticker", max_chars=15,
-                          placeholder="e.g. AAPL, MSFT, BNP.PA, MC.PA").strip().upper()
+        t = st.text_input(label, value="", key=f"{key}_ticker", max_chars=15,
+                          placeholder=f"e.g. {example}").strip().upper()
         if not t:
             return None
         if not TICKER_RE.match(t):
@@ -128,8 +128,8 @@ def ticker_box(col, label: str, default: str, key: str):
 
 st.markdown('<div class="step">Step 1 · Enter two stock tickers</div>', unsafe_allow_html=True)
 c1, c2 = st.columns(2, gap="large")
-ticker_a = ticker_box(c1, "First ticker", "BNP.PA", "a")
-ticker_b = ticker_box(c2, "Second ticker", "GLE.PA", "b")
+ticker_a = ticker_box(c1, "First ticker", "BNP.PA or AAPL", "a")
+ticker_b = ticker_box(c2, "Second ticker", "GLE.PA or MSFT", "b")
 
 st.markdown('<div class="step">Step 2 · How far back should we look?</div>', unsafe_allow_html=True)
 period_label = st.segmented_control("Period", list(PERIODS), default="10 years", label_visibility="collapsed") or "10 years"
@@ -176,8 +176,8 @@ if go_btn:
 res = st.session_state.get("result")
 if not res:
     st.markdown('<div class="card" style="margin-top:1rem;text-align:center">'
-                '👆 Click <b>Compare now</b>. Your results and the <b>📥 Download Excel memo</b> button '
-                'will appear here in about 10 seconds.</div>'
+                '👆 Type two tickers above, then click <b>Compare now</b>. Your results and the '
+                '<b>📥 Download Excel memo</b> button will appear here in about 10 seconds.</div>'
                 '<p class="small" style="margin-top:1rem">Tip: use the Yahoo Finance ticker. US stocks have no '
                 'ending (<b>AAPL</b>, <b>MSFT</b>); Paris stocks end in <b>.PA</b> (<b>BNP.PA</b>, <b>MC.PA</b>); '
                 'London <b>.L</b>, Frankfurt <b>.DE</b>, Tokyo <b>.T</b>.</p>',
