@@ -279,9 +279,13 @@ st.markdown(
 # ---------- 5. AI insights ----------
 st.markdown('<div class="step">What the news and numbers say</div>', unsafe_allow_html=True)
 if not summary.used_ai:
-    st.info(("The AI summary is temporarily unavailable" if summary.error else
-             "The AI summary is off because no Gemini API key is set")
-            + ". Showing an automatic summary from the numbers instead.")
+    if summary.error:
+        why = ai_mod.REASONS.get(summary.error, "Gemini didn't respond")
+        st.warning(f"The AI summary didn't run because {why}. "
+                   "Showing an automatic summary from the numbers instead.")
+    else:
+        st.info("The AI summary is off because no Gemini API key is set. "
+                "Showing an automatic summary from the numbers instead.")
 i1, i2, i3 = st.columns(3, gap="medium")
 for col, icon, title, text, tint in (
     (i1, "✅", "Good news", summary.positive, "#F0FDF4"),

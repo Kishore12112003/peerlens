@@ -89,51 +89,105 @@ def _fallback(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str, err
     )
 
 
+def _clean(v) -> str:
+    """Remove accidental spaces, line breaks or extra quotes around a pasted secret."""
+    return str(v or "").strip().strip('"').strip("'").strip()
+
+
 def get_api_key() -> str | None:
+    key = ""
     try:
         import streamlit as st
-        key = st.secrets.get("GEMINI_API_KEY")
-        if key:
-            return key
+        key = st.secrets.get("GEMINI_API_KEY", "") or st.secrets.get("gemini_api_key", "")
     except Exception:
         pass
-    return os.environ.get("GEMINI_API_KEY")
+    return _clean(key or os.environ.get("GEMINI_API_KEY")) or None
 
 
 def get_model() -> str:
+    model = ""
     try:
         import streamlit as st
-        return st.secrets.get("GEMINI_MODEL", DEFAULT_MODEL)
+        model = st.secrets.get("GEMINI_MODEL", "")
     except Exception:
-        return os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+        pass
+    return _clean(model or os.environ.get("GEMINI_MODEL")) or DEFAULT_MODEL
+
+
+FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+
+# Friendly, key-free explanations shown in the app so the owner can fix the setup.
+REASONS = {
+    "invalid_key": "the Gemini API key was rejected. Re-copy it from aistudio.google.com/apikey into the app's Secrets",
+    "permission": "this Gemini key isn't allowed to use the Gemini API. Create a new key at aistudio.google.com/apikey",
+    "model": "the Gemini model name isn't available. Remove the GEMINI_MODEL line from Secrets",
+    "quota": "the free Gemini limit was reached. Wait a minute and try again",
+    "bad_reply": "Gemini sent back an answer the app couldn't read. Try again",
+    "network": "the app couldn't reach Gemini. Try again in a minute",
+}
+
+
+def _classify(e: Exception) -> str:
+    code = getattr(e, "code", None)
+    text = f"{type(e).__name__} {getattr(e, 'status', '')} {str(e)[:300]}".lower()
+    if isinstance(e, (json.JSONDecodeError, ValueError, KeyError)) and code is None:
+        return "bad_reply"
+    if "api_key_invalid" in text or "api key not valid" in text or code == 401:
+        return "invalid_key"
+    if code == 404 or "not_found" in text or "not found" in text:
+        return "model"
+    if code == 429 or "resource_exhausted" in text or "quota" in text:
+        return "quota"
+    if code == 403 or "permission" in text:
+        return "permission"
+    if code == 400 and "key" in text:
+        return "invalid_key"
+    return "network"
+
+
+def _parse(text: str) -> dict:
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = t.strip("`")
+        t = t[t.find("{"):]
+    t = t[t.find("{"): t.rfind("}") + 1]
+    return json.loads(t)
 
 
 def summarise(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str) -> AISummary:
     key = get_api_key()
     if not key:
         return _fallback(a, b, ma, mb, prompt)
-    model = get_model()
     try:
         from google import genai
         from google.genai import types
+    except Exception:
+        return _fallback(a, b, ma, mb, prompt, error="network")
 
-        client = genai.Client(api_key=key)
-        resp = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
-        )
-        data = json.loads(resp.text)
-        tone = data.get("news_tone") or {}
-        return AISummary(
-            plain_summary=data.get("plain_summary", "").strip(),
-            positive=data.get("positive", "").strip(),
-            negative=data.get("negative", "").strip(),
-            risks=data.get("risks", "").strip(),
-            news_tone={"A": tone.get(a.ticker), "B": tone.get(b.ticker)},
-            prompt=prompt, model=model, used_ai=True,
-        )
-    except Exception as e:  # never break the app because the AI is unavailable
-        # Log only the error type (server-side); never show raw errors, which could leak request details.
-        print(f"[ai] Gemini call failed: {type(e).__name__}")
-        return _fallback(a, b, ma, mb, prompt, error=type(e).__name__)
+    client = genai.Client(api_key=key)
+    models = [get_model()] + [m for m in FALLBACK_MODELS if m != get_model()]
+    reason = "network"
+    for model in models:
+        try:
+            resp = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
+            )
+            data = _parse(resp.text)
+            tone = data.get("news_tone") or {}
+            return AISummary(
+                plain_summary=str(data.get("plain_summary", "")).strip(),
+                positive=str(data.get("positive", "")).strip(),
+                negative=str(data.get("negative", "")).strip(),
+                risks=str(data.get("risks", "")).strip(),
+                news_tone={"A": tone.get(a.ticker), "B": tone.get(b.ticker)},
+                prompt=prompt, model=model, used_ai=True,
+            )
+        except Exception as e:  # never break the app because the AI is unavailable
+            reason = _classify(e)
+            # Server log: error type + reason only. Never the key or the raw request.
+            print(f"[ai] Gemini call failed on {model}: {type(e).__name__} -> {reason}")
+            if reason not in ("model", "bad_reply"):
+                break  # a wrong key or quota won't be fixed by trying another model
+    return _fallback(a, b, ma, mb, prompt, error=reason)
