@@ -1,6 +1,6 @@
 # 📊 PeerLens: compare two companies in plain English
 
-An AI-powered comparative equity analyst. Pick any two listed companies (by name or ticker) and the app:
+An AI-powered comparative equity analyst. Enter the stock tickers of any two listed companies (e.g. BNP.PA and GLE.PA) and the app:
 
 1. **Pulls up to 10 years of live prices** and company fundamentals from Yahoo Finance
 2. **Calculates every figure in Python**: total & yearly return, volatility, max drawdown, return per unit of risk, P/E, ROE, dividend yield, correlation

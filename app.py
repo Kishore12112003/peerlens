@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -9,7 +10,7 @@ import streamlit as st
 
 from core import ai as ai_mod
 from core.analysis import base_100, compute_metrics, correlation, scorecard, verdict
-from core.data import PERIODS, load_company, load_prices, search_companies
+from core.data import PERIODS, load_company, load_prices
 from core.excel import build_memo, memo_filename
 
 st.set_page_config(page_title="PeerLens · Compare two companies", page_icon="📊", layout="wide",
@@ -76,11 +77,6 @@ div[data-testid="stDownloadButton"] button, div[data-testid="stButton"] button[k
 
 # ---------- cached data access (1 hour) ----------
 @st.cache_data(ttl=3600, show_spinner=False)
-def cached_search(q: str):
-    return search_companies(q)
-
-
-@st.cache_data(ttl=3600, show_spinner=False)
 def cached_company(t: str):
     return load_company(t)
 
@@ -108,32 +104,32 @@ def esc(s) -> str:
 # ---------- header ----------
 st.markdown(
     """<div class="hero"><h1>📊 Compare two companies</h1>
-    <p>Pick any two listed companies. We pull up to <b>10 years of live market data</b>, read the
+    <p>Enter the tickers of any two listed companies. We pull up to <b>10 years of live market data</b>, read the
     <b>latest news</b>, and show you in plain English which one looks stronger on the numbers. Then download the
     full Excel memo in one click.</p></div>""",
     unsafe_allow_html=True,
 )
 
 
-def company_picker(col, label: str, default: str, key: str):
+TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-^=]{0,14}$")
+
+
+def ticker_box(col, label: str, default: str, key: str):
     with col:
-        q = st.text_input(label, value=default, key=f"{key}_q",
-                          placeholder="Type a name or ticker, e.g. Apple, LVMH, BNP.PA")
-        matches = cached_search(q) if q else []
-        if not matches:
-            if q:
-                st.caption("No company found. Try another spelling or the stock ticker.")
+        t = st.text_input(label, value=default, key=f"{key}_ticker", max_chars=15,
+                          placeholder="e.g. AAPL, MSFT, BNP.PA, MC.PA").strip().upper()
+        if not t:
             return None
-        opts = {f"{m['name']}  ·  {m['ticker']}" + (f"  ·  {m['exchange']}" if m["exchange"] else ""): m["ticker"]
-                for m in matches}
-        choice = st.selectbox("Pick the right one", list(opts), key=f"{key}_pick", label_visibility="collapsed")
-        return opts[choice]
+        if not TICKER_RE.match(t):
+            st.caption("That doesn't look like a ticker. Use letters, numbers and dots, e.g. BNP.PA")
+            return None
+        return t
 
 
-st.markdown('<div class="step">Step 1 · Choose two companies</div>', unsafe_allow_html=True)
+st.markdown('<div class="step">Step 1 · Enter two stock tickers</div>', unsafe_allow_html=True)
 c1, c2 = st.columns(2, gap="large")
-ticker_a = company_picker(c1, "First company", "BNP Paribas", "a")
-ticker_b = company_picker(c2, "Second company", "Societe Generale", "b")
+ticker_a = ticker_box(c1, "First ticker", "BNP.PA", "a")
+ticker_b = ticker_box(c2, "Second ticker", "GLE.PA", "b")
 
 st.markdown('<div class="step">Step 2 · How far back should we look?</div>', unsafe_allow_html=True)
 period_label = st.segmented_control("Period", list(PERIODS), default="10 years", label_visibility="collapsed") or "10 years"
@@ -144,13 +140,14 @@ with st.expander("➕ Add your own news headlines (optional)"):
 go_btn = st.button("Compare now  →", type="primary", width="stretch",
                    disabled=not (ticker_a and ticker_b))
 if ticker_a and ticker_b and ticker_a == ticker_b:
-    st.warning("You picked the same company twice. Choose two different ones.")
+    st.warning("You entered the same ticker twice. Enter two different ones.")
     go_btn = False
 
 # ---------- run analysis ----------
 if go_btn:
+    status = st.status("Working on it…", expanded=True)
     try:
-        with st.status("Working on it…", expanded=True) as status:
+        with status:
             st.write("🔎 Looking up both companies…")
             a, b = cached_company(ticker_a), cached_company(ticker_b)
             st.write(f"📈 Downloading {period_label.lower()} of daily prices…")
@@ -172,6 +169,8 @@ if go_btn:
                                           summary=summary, checks=checks, leader=leader, wins=(wa, wb_),
                                           xlsx=xlsx, period=period_label)
     except Exception as e:
+        status.update(label="Couldn't finish: see the message below.", state="error", expanded=False)
+        st.session_state.pop("result", None)  # don't show old results for a different pair
         st.error(f"Sorry, something went wrong while fetching the data: {e}")
 
 res = st.session_state.get("result")
@@ -179,8 +178,9 @@ if not res:
     st.markdown('<div class="card" style="margin-top:1rem;text-align:center">'
                 '👆 Click <b>Compare now</b>. Your results and the <b>📥 Download Excel memo</b> button '
                 'will appear here in about 10 seconds.</div>'
-                '<p class="small" style="margin-top:1rem">Tip: you can type a company name in any language '
-                'Yahoo Finance knows, or a ticker like <b>AAPL</b>, <b>MC.PA</b> or <b>7203.T</b>.</p>',
+                '<p class="small" style="margin-top:1rem">Tip: use the Yahoo Finance ticker. US stocks have no '
+                'ending (<b>AAPL</b>, <b>MSFT</b>); Paris stocks end in <b>.PA</b> (<b>BNP.PA</b>, <b>MC.PA</b>); '
+                'London <b>.L</b>, Frankfurt <b>.DE</b>, Tokyo <b>.T</b>.</p>',
                 unsafe_allow_html=True)
     st.stop()
 
