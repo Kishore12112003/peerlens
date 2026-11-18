@@ -22,6 +22,7 @@ class AISummary:
     model: str = ""
     used_ai: bool = False
     error: str = ""
+    error_detail: str = ""  # safe diagnostics only: Google's reason code + key shape, never the key
 
 
 def _fmt(v, kind):
@@ -145,6 +146,18 @@ def _classify(e: Exception) -> str:
     return "network"
 
 
+def _google_reason(e: Exception) -> str:
+    import re
+    m = re.search(r"'reason': '([A-Z_]+)'", str(getattr(e, "details", "") or ""))
+    return m.group(1) if m else (getattr(e, "status", None) or type(e).__name__)
+
+
+def _key_shape(key: str) -> str:
+    ok = key.startswith("AIza") and len(key) == 39
+    return (f"key starts with 'AIza': {'yes' if key.startswith('AIza') else 'NO'}, "
+            f"length {len(key)} characters (a normal key has 39)" + ("" if ok else " ⚠️"))
+
+
 def _parse(text: str) -> dict:
     t = (text or "").strip()
     if t.startswith("```"):
@@ -166,7 +179,7 @@ def summarise(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str) -> 
 
     client = genai.Client(api_key=key)
     models = [get_model()] + [m for m in FALLBACK_MODELS if m != get_model()]
-    reason = "network"
+    reason, detail = "network", ""
     for model in models:
         try:
             resp = client.models.generate_content(
@@ -186,8 +199,11 @@ def summarise(a: Company, b: Company, ma: Metrics, mb: Metrics, prompt: str) -> 
             )
         except Exception as e:  # never break the app because the AI is unavailable
             reason = _classify(e)
+            detail = f"Google says: {_google_reason(e)} · {_key_shape(key)}"
             # Server log: error type + reason only. Never the key or the raw request.
             print(f"[ai] Gemini call failed on {model}: {type(e).__name__} -> {reason}")
             if reason not in ("model", "bad_reply"):
                 break  # a wrong key or quota won't be fixed by trying another model
-    return _fallback(a, b, ma, mb, prompt, error=reason)
+    out = _fallback(a, b, ma, mb, prompt, error=reason)
+    out.error_detail = detail
+    return out

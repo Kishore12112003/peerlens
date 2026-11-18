@@ -283,6 +283,8 @@ if not summary.used_ai:
         why = ai_mod.REASONS.get(summary.error, "Gemini didn't respond")
         st.warning(f"The AI summary didn't run because {why}. "
                    "Showing an automatic summary from the numbers instead.")
+        if summary.error_detail:
+            st.caption(f"For the app owner: {summary.error_detail}")
     else:
         st.info("The AI summary is off because no Gemini API key is set. "
                 "Showing an automatic summary from the numbers instead.")
